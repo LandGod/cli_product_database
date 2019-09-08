@@ -38,7 +38,7 @@ function mainPrompt() {
                 printAllProducts();
                 break;
             case 'View Products by Department':
-                // TODO:
+                getProductsByDepartment();
                 break;
             case 'Search by Product Name':
                 // TODO:
@@ -87,17 +87,51 @@ function thenBackToMenu() {
 function printAllProducts() {
     connection.query('SELECT * FROM products WHERE stock > 0',
         function (err, res) {
-            if (err) { throw (err) };
-            if (res) {
-                console.table(parseTable(res));
-            }
-
-            else { console.log(`Error: Database Unreachable`) };
-
+            if (err) { throw (err) }
+            else if (res) { console.table(parseTable(res)) }
+            else { console.log(`Error: Database Unreachable`) };  // This shouldn't be triggerable
 
             // When done, after user hits enter, return back to first prompt
-            
             thenBackToMenu();
+
+        })
+};
+
+function getProductsByDepartment() {
+    connection.query('SELECT DISTINCT department_name FROM products',
+        function (err, res) {
+            if (err) { throw (err) }
+            else {
+
+                // Get list of department names from list of objects
+                let depts = res.map(x => x.department_name);
+
+                // Feed list of departments to inqurer
+                inquirer.prompt([
+                    {
+                        type: 'list',
+                        name: 'whichDepartment',
+                        message: 'Which department would you like to browse?',
+                        choices: depts
+                    }
+
+                // Then give the user a list of all products in the selected department
+                ]).then(answers => {
+
+                    connection.query('SELECT * FROM products WHERE department_name = ?', answers.whichDepartment, function (err, res) {
+
+                        if (err) { throw (err) }
+                        else if (res) { console.table(parseTable(res)) }
+                        else { console.log(`Error: Database Unreachable`) };  // This shouldn't be triggerable
+
+                        // When done, after user hits enter, return back to first prompt
+                        thenBackToMenu();
+
+                    });
+
+                });
+
+            };
 
         })
 };
