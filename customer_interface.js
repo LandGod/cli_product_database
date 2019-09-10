@@ -41,7 +41,7 @@ function mainPrompt() {
                 getProductsByDepartment();
                 break;
             case 'Search by Product Name':
-                // TODO:
+                getProductByName()
                 break;
             case 'Purchase Product by Index Number':
                 // TODO:
@@ -70,17 +70,21 @@ function parseTable(rawData) {
 };
 
 // Prompts the user to confirm that they wish to continue, then return to main menu
-function thenBackToMenu() {
+function thenBackToMenu(skipPause = false) {
 
-    inquirer.prompt([
-        {
-            type: 'input',
-            name: 'continue',
-            message: "Press [Enter] to continue"
-        }
-    ]).then(x => {
+    if (!skipPause) {
+        inquirer.prompt([
+            {
+                type: 'input',
+                name: 'continue',
+                message: "Press [Enter] to continue"
+            }
+        ]).then(x => {
+            mainPrompt();
+        })
+    } else {
         mainPrompt();
-    })
+    }
 };
 
 
@@ -115,7 +119,7 @@ function getProductsByDepartment() {
                         choices: depts
                     }
 
-                // Then give the user a list of all products in the selected department
+                    // Then give the user a list of all products in the selected department
                 ]).then(answers => {
 
                     connection.query('SELECT * FROM products WHERE department_name = ?', answers.whichDepartment, function (err, res) {
@@ -135,3 +139,111 @@ function getProductsByDepartment() {
 
         })
 };
+
+function getProductByName() {
+    inquirer.prompt([
+        {
+            name: 'searchTerm',
+            type: 'input',
+            message: 'Enter a term to see related products:'
+        }
+    ]).then(answer => {
+
+        // Convert user intput into search string by splitting it up and adding some controll character wildcards
+        let splitTerm = answer.searchTerm.split(' ');
+        let sTerm = '%';
+        for (let i = 0; i < splitTerm.length; i++) {
+            sTerm = sTerm + splitTerm[i] + '%';
+        };
+
+        connection.query('SELECT * FROM products WHERE product_name LIKE ?', sTerm, function (err, res) {
+
+            if (err) { throw (err) }
+
+            // If no results are found, print message and offer to search again or return to main menu
+            else if (res.length === 0) {
+                inquirer.prompt([
+                    {
+                        name: 'whatNext',
+                        type: 'list',
+                        message: 'No results found.',
+                        choices: ['Search again', 'Back to main menu']
+                    }
+                ]).then(answer => {
+                    switch (answer.whatNext) {
+                        case 'Search again':
+                            getProductByName();
+                            break;
+                        case 'Back to main menu':
+                            thenBackToMenu('skip pause');
+                            break;
+                    }
+                })
+            }
+
+            // If we do get results, list them for the user and allow them to select one, or quit out
+            else {
+
+                productList = [];
+
+                for (let i = 0; i < res.length; i++) {
+                    productList.push(res[i].product_name);
+                }
+
+                productList.push('New search');
+                productList.push('Back to main menu');
+
+                inquirer.prompt([
+                    {
+                        name: 'pickProduct',
+                        type: 'list',
+                        message: `${productList.length - 2} products found`,
+                        choices: productList
+                    }
+                ]).then(answer => {
+                    switch (answer.pickProduct) {
+                        case 'Search again':
+                            getProductByName();
+                            break;
+                        case 'Back to main menu':
+                            thenBackToMenu('skip pause');
+                            break;
+                        default:
+                            connection.query('SELECT * FROM products WHERE product_name = ?', answer.pickProduct, function (err, res) {
+                                if (err) { throw (err) }
+                                else {
+                                    console.table(parseTable(res));
+                                    inquirer.prompt([
+                                        {
+                                            name: 'doWithProduct',
+                                            type: 'list',
+                                            message: ' ',
+                                            choices: ['Purchase', 'New search', 'Main menu']
+                                        }
+                                    ]).then(answer => {
+                                        switch (answer.doWithProduct) {
+                                            case 'New search':
+                                                getProductByName();
+                                                break;
+                                            case 'Main menu':
+                                                thenBackToMenu('skip pause');
+                                                break;
+                                            case 'Purchase':
+                                                placeOrder(res.item_id);
+                                        }
+                                    });
+                                }
+                            })
+                    }
+
+                })
+
+            }
+        });
+    });
+};
+
+function placeOrder(prodID) {
+    //TODO:
+    console.log('Product Purchasing not implemented yet. Sorry.')
+}
