@@ -28,7 +28,7 @@ function mainPrompt() {
                 'View All Available Merchandise',
                 'View Products by Department',
                 'Search by Product Name',
-                'Purchase Product by ID',
+                'Purchase Product by Index Number',
                 'Exit Store'
             ]
         }
@@ -45,6 +45,7 @@ function mainPrompt() {
                 break;
             case 'Purchase Product by Index Number':
                 // TODO:
+                placeOrder(1000)
                 break;
             case 'Exit Store':
             default:
@@ -86,7 +87,6 @@ function thenBackToMenu(skipPause = false) {
         mainPrompt();
     }
 };
-
 
 function printAllProducts() {
     connection.query('SELECT * FROM products WHERE stock > 0',
@@ -243,7 +243,57 @@ function getProductByName() {
     });
 };
 
-function placeOrder(prodID) {
-    //TODO:
-    console.log('Product Purchasing not implemented yet. Sorry.')
+// Provided a type('buy', or 'restock'), product ID, ammount, and callback function, this will try to update the database to reflect that the specified ammount
+// of product was bought. Callback will recieve an object with the following info:
+// statusCode: 'success' or 'failed'
+// error: 'not enough product' or 'no product found' or 'none'
+// currentStock: (int) If success: remaining amount of product in stock, if failure: current ammount of product in stock
+
+function placeOrder(type, prodID, ammount, callback) {
+    // Get exitsting ammount of product in stock and make sure there is enough for the customer to buy
+
+    let currentStock;
+
+    connection.query('SELECT stock FROM products WHERE item_id = ?', prodID, function (err, res) {
+
+        if (err) { throw (err) };
+
+        currentStock = res[0].stock
+    })
+
+    if (type === 'buy') {
+
+        if (ammount > currentStock) {
+            callback({ statusCode: 'failed', error: 'not enough product', currentStock: currentStock })
+        }
+        else {
+            currentStock -= ammount;
+            if (currentStock < 0) { throw (`Ammount of stock for product ID '${prodID}' is negative!`) }
+            connection.query("UPDATE products SET stock = ? WHERE item_id = ?", [currentStock, prodID], function (err, res) {
+                if (err) { throw (err) }
+
+                console.log(`Success!\nBought ${ammount} product number ${prodID}`);
+
+                thenBackToMenu();
+
+            });
+        }
+
+    }
+    else if (type === 'restock') {
+        currentStock += ammount;
+        if (!(typeof currentStock === 'number')) {throw(`Restock number error! Stock value many not be ${currentStock}`)}
+        connection.query("UPDATE products SET stock = ? WHERE item_id = ?", [currentStock, prodID], function (err, res) {
+            if (err) { throw (err) }
+
+            console.log(`Success!\nAdded ${ammount} pf product number ${prodID} to inventory`);
+
+            thenBackToMenu();
+
+        });
+
+    }
+    else {
+        throw(`Invalid value '${type}' for type argument! Must be 'buy' or 'restock'.`)
+    }
 }
