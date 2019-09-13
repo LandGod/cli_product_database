@@ -44,8 +44,7 @@ function mainPrompt() {
                 getProductByName()
                 break;
             case 'Purchase Product by Index Number':
-                // TODO:
-                placeOrder(1000)
+                promptForOrder()
                 break;
             case 'Exit Store':
             default:
@@ -248,7 +247,6 @@ function getProductByName() {
 // statusCode: 'success' or 'failed'
 // error: 'not enough product' or 'no product found' or 'none'
 // currentStock: (int) If success: remaining amount of product in stock, if failure: current ammount of product in stock
-
 function placeOrder(type, prodID, ammount, callback) {
     // Get exitsting ammount of product in stock and make sure there is enough for the customer to buy
 
@@ -258,42 +256,133 @@ function placeOrder(type, prodID, ammount, callback) {
 
         if (err) { throw (err) };
 
-        currentStock = res[0].stock
-    })
-
-    if (type === 'buy') {
-
-        if (ammount > currentStock) {
-            callback({ statusCode: 'failed', error: 'not enough product', currentStock: currentStock })
+        if (res[0] === undefined || res[0].stock === null || res[0].stock === 'null') {
+            callback({ statusCode: 'failed', error: 'no product found', currentStock: null })
+            return;
         }
-        else {
-            currentStock -= ammount;
-            if (currentStock < 0) { throw (`Ammount of stock for product ID '${prodID}' is negative!`) }
+
+        currentStock = parseInt(res[0].stock);
+
+        if (type === 'buy') {
+
+            if (ammount > currentStock) {
+                callback({ statusCode: 'failed', error: 'not enough product', currentStock: currentStock })
+                return;
+            }
+
+            else {
+                currentStock -= ammount;
+                if (currentStock < 0) { throw (`Ammount of stock for product ID '${prodID}' is negative!`) }
+                connection.query("UPDATE products SET stock = ? WHERE item_id = ?", [currentStock, prodID], function (err, res) {
+                    if (err) { throw (err) }
+
+                    callback({ statusCode: 'success', error: 'none', currentStock: currentStock })
+                    return;
+
+                });
+            }
+
+        }
+        else if (type === 'restock') {
+            currentStock += ammount;
+            if (!(typeof currentStock === 'number')) { throw (`Restock number error! Stock value many not be ${currentStock}`) }
             connection.query("UPDATE products SET stock = ? WHERE item_id = ?", [currentStock, prodID], function (err, res) {
                 if (err) { throw (err) }
 
-                console.log(`Success!\nBought ${ammount} product number ${prodID}`);
-
-                thenBackToMenu();
+                callback({ statusCode: 'success', error: 'none', currentStock: currentStock })
+                return;
 
             });
+
+        }
+        else {
+            throw (`Invalid value '${type}' for type argument! Must be 'buy' or 'restock'.`)
         }
 
-    }
-    else if (type === 'restock') {
-        currentStock += ammount;
-        if (!(typeof currentStock === 'number')) {throw(`Restock number error! Stock value many not be ${currentStock}`)}
-        connection.query("UPDATE products SET stock = ? WHERE item_id = ?", [currentStock, prodID], function (err, res) {
-            if (err) { throw (err) }
+    })
 
-            console.log(`Success!\nAdded ${ammount} pf product number ${prodID} to inventory`);
+}
 
-            thenBackToMenu();
+// Gets info from the user about what they want to buy, then calls placeOrder
+function promptForOrder() {
+    inquirer.prompt([
+        {
+            name: 'productID',
+            type: 'number',
+            message: "Please enter the index number of the product you'd like to buy:",
+            validate: isNumber
+        },
+        {
+            name: 'productAmmount',
+            type: 'number',
+            message: 'How many would you like to buy?',
+            validate: isNumber
+        }
+    ]).then(answers => {
 
+        placeOrder('buy', answers.productID, answers.productAmmount, result => {
+            if (result.statusCode === 'success') {
+                console.log('Order placed successfully!');
+                thenBackToMenu();
+            } else {
+
+                switch (result.error) {
+
+                    case 'not enough product':
+                        console.log('Sorry, there is not enough product in stock to fullfill that order.');
+                        console.log(`Only ${result.currentStock} units are availble.`)
+                        tryAgain('Try a new order?', promptForOrder);
+                        break;
+
+                    case 'no product found':
+                        tryAgain('No product with that index number was found. Try again?', promptForOrder);
+                        break;
+
+                    default:
+                        console.log('The buy action failed due to an unknown error.');
+                        tryAgain('Try Again?', promptForOrder);
+                }
+            }
         });
 
+    });
+}
+
+// A function for asking the user if they want to try again, or return to the previous action
+// Must specify a prompt message to be passed to inquirer, and the function to call if the user asks to try agian.
+// May specify a function to call if the user elects not to try again. Defaults to main menu.
+function tryAgain(prompt, yes, no) {
+
+    if (!no) {
+        no = function () { thenBackToMenu('skip pause') }
+    };
+
+    inquirer.prompt([
+        {
+            name: 'rePromptPrompt',
+            type: 'confirm',
+            message: prompt
+        }
+    ]).then(answer => {
+        if (answer.rePromptPrompt) {
+            yes();
+        } else {
+            no();
+        }
+    });
+}
+
+function isNumber(text) {
+
+    let num = Number(text);
+
+    if ((typeof (num) === 'number') && !(isNaN(num))) {
+        if (num < 0) {
+            console.log('')
+            return 'Number must be greater than 0.'}
+            ;
+        if (Math.round(num) !== num) {return 'Please enter whole numbers only.'};
+        return true;
     }
-    else {
-        throw(`Invalid value '${type}' for type argument! Must be 'buy' or 'restock'.`)
-    }
+    return 'Please enter only a number.';
 }
