@@ -203,14 +203,15 @@ function getProductByName() {
                 ]).then(function (answer) {
 
                     switch (answer.pickProduct) {
-                        case 'Search again':
+                        case 'New search':
                             getProductByName();
-                            return;
+                            break;
                         case 'Back to main menu':
                             thenBackToMenu('skip pause');
-                            return;
+                            break;
+
                         default:
-                            
+                            console.log(answer.pickProduct)
                             connection.query('SELECT * FROM products WHERE product_name = ?', answer.pickProduct, function (err, res) {
                                 if (err) {
                                     console.log('Mysql error of some sort')
@@ -252,26 +253,29 @@ function getProductByName() {
 // statusCode: 'success' or 'failed'
 // error: 'not enough product' or 'no product found' or 'none'
 // currentStock: (int) If success: remaining amount of product in stock, if failure: current ammount of product in stock
+// unitPrice: (float) the price of the product per unit (not the total price of the order)
 function placeOrder(type, prodID, ammount, callback) {
     // Get exitsting ammount of product in stock and make sure there is enough for the customer to buy
 
     let currentStock;
+    let unitPrice;
 
-    connection.query('SELECT stock FROM products WHERE item_id = ?', prodID, function (err, res) {
+    connection.query('SELECT * FROM products WHERE item_id = ?', prodID, function (err, res) {
 
         if (err) { throw (err) };
 
         if (res[0] === undefined || res[0].stock === null || res[0].stock === 'null') {
-            callback({ statusCode: 'failed', error: 'no product found', currentStock: null })
+            callback({ statusCode: 'failed', error: 'no product found', currentStock: null, unitPrice: null })
             return;
         }
 
         currentStock = parseInt(res[0].stock);
+        unitPrice = parseFloat(res[0].price);
 
         if (type === 'buy') {
 
             if (ammount > currentStock) {
-                callback({ statusCode: 'failed', error: 'not enough product', currentStock: currentStock })
+                callback({ statusCode: 'failed', error: 'not enough product', currentStock: currentStock, unitPrice: unitPrice })
                 return;
             }
 
@@ -281,7 +285,7 @@ function placeOrder(type, prodID, ammount, callback) {
                 connection.query("UPDATE products SET stock = ? WHERE item_id = ?", [currentStock, prodID], function (err, res) {
                     if (err) { throw (err) }
 
-                    callback({ statusCode: 'success', error: 'none', currentStock: currentStock })
+                    callback({ statusCode: 'success', error: 'none', currentStock: currentStock, unitPrice: unitPrice })
                     return;
 
                 });
@@ -338,6 +342,7 @@ function promptForOrder(pID) {
         placeOrder('buy', finalPID, answers.productAmmount, result => {
             if (result.statusCode === 'success') {
                 console.log('Order placed successfully!');
+                console.log(`Total cost: ${parseDollarAmmount(result.unitPrice * answers.productAmmount)}`);
                 thenBackToMenu();
             } else {
 
@@ -401,4 +406,23 @@ function isNumber(text) {
         return true;
     }
     return 'Please enter only a number.';
+}
+
+function parseDollarAmmount(num) {
+    let outNum = '$' + num;
+    let dPlace = outNum.indexOf('.');
+    switch(outNum.length - dPlace - 1) {
+        case outNum.length:
+            outNum += '.00';
+            dPlace = outNum.indexOf('.');
+            break;
+        case 0:
+            outNum += '00';
+            break;
+        case 1: 
+            outNum += '0';
+            break;
+    }
+
+    return outNum.slice(0, (dPlace + 3));
 }
