@@ -346,7 +346,7 @@ function promptForOrder(pID) {
                     case 'not enough product':
                         console.log('Sorry, there is not enough product in stock to fullfill that order.');
                         console.log(`Only ${result.currentStock} units are availble.`)
-                        tryAgain('Try a new order?', promptForOrder);
+                        tryAgain('Try a new order?', promptForOrder, undefined, pID);
                         break;
 
                     case 'no product found':
@@ -355,7 +355,7 @@ function promptForOrder(pID) {
 
                     default:
                         console.log('The buy action failed due to an unknown error.');
-                        tryAgain('Try Again?', promptForOrder);
+                        tryAgain('Try Again?', promptForOrder, undefined, pID);
                 }
             }
         });
@@ -366,7 +366,7 @@ function promptForOrder(pID) {
 // A function for asking the user if they want to try again, or return to the previous action
 // Must specify a prompt message to be passed to inquirer, and the function to call if the user asks to try agian.
 // May specify a function to call if the user elects not to try again. Defaults to main menu.
-function tryAgain(prompt, yes, no) {
+function tryAgain(prompt, yes, no, arg) {
 
     if (!no) {
         no = function () { thenBackToMenu('skip pause') }
@@ -380,7 +380,7 @@ function tryAgain(prompt, yes, no) {
         }
     ]).then(answer => {
         if (answer.rePromptPrompt) {
-            yes();
+            yes(arg);
         } else {
             no();
         }
