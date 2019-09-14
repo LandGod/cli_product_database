@@ -15,13 +15,13 @@ Through this app, the customer can view parts of the inventory database and make
 
 While we would no doubt have to remove this feature if using a larger database, for the purposes of this example database, we're allowing users to view the entire list of all products if they would like to. The only piece of data that we hide from customers is the amount of product we have in stock, although we will let them know that information if they attempt to buy more of a particular product than we have.
 
-[full database image]
+![Product Overview](https://raw.githubusercontent.com/LandGod/cli_product_database/master/demo/productDBOverview.png)
 
 #### View by Department
 
 Users can also get a list of all departments and select one from the list in order to see all products from a particular department. The list (and selected query) is generated dynamically by querying the SQL database for all unique entries to the department field, so if new departments are added later, they will automatically appear on the list and be selectable. 
 
-[dept search image]
+![View By Department](https://raw.githubusercontent.com/LandGod/cli_product_database/master/demo/byDepartment.gif)
 
 #### Search by Name
 
@@ -29,13 +29,13 @@ If a user already knows the name of the product they want, or has a term and wan
 
 In order to give customers a good user experience, they are given the option to buy any product that they select from the list of matching product names, without having to return to the main menu. 
 
-[by name image]
+![Search By Name](https://raw.githubusercontent.com/LandGod/cli_product_database/master/demo/SearchByName.gif)
 
 #### Buy With Product Index Number
 
 For returning customers who already know the product index number of the thing they'd like to purchase, they can use this command to cut right to chase, entering that number and the amount they want to make a purchase as fast as possible. If they enter a product index number that doesn't exist in the database, they are simply prompted to try again, or return to the main menu.
 
-[by id image]
+![Buy With Index](https://raw.githubusercontent.com/LandGod/cli_product_database/master/demo/buyWithIndex.gif)
 
 
 
@@ -45,5 +45,5 @@ As we know, users will make mistakes and we can't have the program crashing out 
 
 If the user enters a valid number, but no product with the specified index number is found, the input is accepted, but the user will be informed and asked to either try again, or return to the main menu. The same thing happens if the user specifies an amount of product to purchase that exceeds the current amount in stock. In this situation the user will also be told the total amount of the product in stock, to avoid further frustration. 
 
-[error image]
+![Handling User Input](https://raw.githubusercontent.com/LandGod/cli_product_database/master/demo/InputHandling.gif)
 
