@@ -12,7 +12,6 @@ var connection = mysql.createConnection({
 
 connection.connect(function (err) {
     if (err) throw err;
-    console.log("connected as id " + connection.threadId + "\n");
 
     // Start the rest of the program until this asynchronous action has been completed
     mainPrompt();
