@@ -140,6 +140,7 @@ function getProductsByDepartment() {
 };
 
 function getProductByName() {
+
     inquirer.prompt([
         {
             name: 'searchTerm',
@@ -199,17 +200,22 @@ function getProductByName() {
                         message: `${productList.length - 2} products found`,
                         choices: productList
                     }
-                ]).then(answer => {
+                ]).then(function (answer) {
+
                     switch (answer.pickProduct) {
                         case 'Search again':
                             getProductByName();
-                            break;
+                            return;
                         case 'Back to main menu':
                             thenBackToMenu('skip pause');
-                            break;
+                            return;
                         default:
+                            
                             connection.query('SELECT * FROM products WHERE product_name = ?', answer.pickProduct, function (err, res) {
-                                if (err) { throw (err) }
+                                if (err) {
+                                    console.log('Mysql error of some sort')
+                                    throw (err)
+                                }
                                 else {
                                     console.table(parseTable(res));
                                     inquirer.prompt([
@@ -219,8 +225,8 @@ function getProductByName() {
                                             message: ' ',
                                             choices: ['Purchase', 'New search', 'Main menu']
                                         }
-                                    ]).then(answer => {
-                                        switch (answer.doWithProduct) {
+                                    ]).then(answer2 => {
+                                        switch (answer2.doWithProduct) {
                                             case 'New search':
                                                 getProductByName();
                                                 break;
@@ -228,17 +234,16 @@ function getProductByName() {
                                                 thenBackToMenu('skip pause');
                                                 break;
                                             case 'Purchase':
-                                                placeOrder(res.item_id);
-                                        }
-                                    });
-                                }
-                            })
-                    }
+                                                promptForOrder(res[0].item_id)
 
-                })
-
-            }
-        });
+                                        } // switch/case
+                                    }); // Inquirer do with product .then()
+                                } // else block (if not error)
+                            }) // Connection.query
+                    } // Switch/case (pick product from list)
+                }) //Inquirer pick product .then()
+            } // Else block (If valid search result if found)
+        }); // Connection.query
     });
 };
 
@@ -304,13 +309,21 @@ function placeOrder(type, prodID, ammount, callback) {
 }
 
 // Gets info from the user about what they want to buy, then calls placeOrder
-function promptForOrder() {
+function promptForOrder(pID) {
+
+    // Should we ask for a product ID?
+    let askForPID; 
+
+    if (pID) { askForPID = false;}
+    else { askForPID = true;}
+
     inquirer.prompt([
         {
             name: 'productID',
             type: 'number',
             message: "Please enter the index number of the product you'd like to buy:",
-            validate: isNumber
+            validate: isNumber,
+            when: askForPID
         },
         {
             name: 'productAmmount',
@@ -320,7 +333,9 @@ function promptForOrder() {
         }
     ]).then(answers => {
 
-        placeOrder('buy', answers.productID, answers.productAmmount, result => {
+        let finalPID = pID || answers.productID;
+
+        placeOrder('buy', finalPID, answers.productAmmount, result => {
             if (result.statusCode === 'success') {
                 console.log('Order placed successfully!');
                 thenBackToMenu();
@@ -379,9 +394,10 @@ function isNumber(text) {
     if ((typeof (num) === 'number') && !(isNaN(num))) {
         if (num < 0) {
             console.log('')
-            return 'Number must be greater than 0.'}
-            ;
-        if (Math.round(num) !== num) {return 'Please enter whole numbers only.'};
+            return 'Number must be greater than 0.'
+        }
+        ;
+        if (Math.round(num) !== num) { return 'Please enter whole numbers only.' };
         return true;
     }
     return 'Please enter only a number.';
